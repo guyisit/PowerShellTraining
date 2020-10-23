@@ -311,7 +311,7 @@ Write a PowerShell script that
     Property : Length
     ```
 
-### Creating customer return values
+### Creating custom return values
 
 12. Still we have an issue with the output. Yes, we get one summary object per folder now but we don't know which summary object belongs to which folder. And we don't want to trust the ordering. So instead returning the object that Measure-Object returns, we are creating our own object that contains all the data that is needed.
 
