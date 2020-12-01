@@ -4,7 +4,7 @@
 
 We are creating a simple PowerShell script that grows and implements a lot of features that PowerShell provides for making functions flexible, robust, easy to read and self documenting.
 
-We start with
+The purpose of the script is to find small files and return the sum of all these. We start listing all files, then measuring their content, then filtering out files that are not considered to be small and then we convert this into a function. The function will grow like this:
 - the basics
 - implement parameters
   - that are type safe
@@ -34,7 +34,7 @@ Write a PowerShell script that
     <summary></summary>
 
     ```powershell
-    Get-ChildItem -Path C:\Windows -File | Measure-Object -Property Length -Sum
+    Get-ChildItem -Path C:\Windows -File -Recurse | Measure-Object -Property Length -Sum
     ```
     </details>
 
@@ -167,7 +167,7 @@ Write a PowerShell script that
     }
 
     Get-SmallFile -Path C:\Windows
-    Get-SmallFile -Path C:\Windows -MaxSize 100000
+    Get-SmallFile -Path C:\Windows -MaxSize 1MB
     ```
     </details>
 
@@ -362,6 +362,7 @@ Write a PowerShell script that
                 Path        = $p
                 MaxSize     = $MaxSize
                 FileSizeSum = $result.Sum
+                FileCount   = $result.Count
             }
         }
     }
@@ -407,7 +408,8 @@ Write a PowerShell script that
                 Path         = $p
                 MaxSize      = $MaxSize
                 FileSizeSum  = $result.Sum
-                AverageSize  = [System.Math]::Round($result.Average, 2)   
+                FileCount   = $result.Count
+                AverageSize  = [System.Math]::Round($result.Average, 2)
             }
         }
     }
@@ -502,7 +504,43 @@ Write a PowerShell script that
     Get-Item -Path C:\Windows, 'C:\Program Files' | Get-SmallFile
     ```
 
-14. Finally, it is time to add some help to the function. For this, we add a comment block at the very beginning of the function. It is important to use the help keywords described in [About Comment-based Help](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-7) to divide you test into sections that 'Get-Help' understands.
+14. Now that we have the data returned for each folder, having the option to add also a summary object could be quite helpful in some cases. For making this optional, we add a new parameter to the param block:
+
+```powershell
+    [switch]$AddSummary
+```
+
+Then we make use of the begin block to initialize an object to store the summary information. Please add the following block above the process block:
+
+```powershell
+begin {
+        $summary = [pscustomobject]@{
+            Path         = 'Summary'
+            FileCount    = 0
+            Size         = 0
+            MaxSize      = $MaxSize
+        }
+    }
+```
+
+For each record that is processed we are adding the file count and the size to the summary object like this:
+
+```powershell
+$summary.FileCount += $result.Count
+$summary.Size += $result.Sum
+```
+
+And then we add the following end block below the process block to return the summary object along with the other objects that contain the info for each folder.
+
+```powershell
+end {
+    if ($AddSummary) {
+        $summary
+    }
+}
+```
+
+15. Finally, it is time to add some help to the function. For this, we add a comment block at the very beginning of the function. It is important to use the help keywords described in [About Comment-based Help](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-7) to divide you test into sections that 'Get-Help' understands.
 
     <details>
     <summary></summary>
@@ -540,28 +578,50 @@ Write a PowerShell script that
             .NOTES
             I hope that was fun.
         #>
+        
         param(
             [Parameter(Mandatory, ValueFromPipeline)]
             [ValidateScript( { Test-Path -Path $_ -PathType Container })]
             [string[]]$Path,
                     
             [ValidateRange(1, [long]::MaxValue)]
-            [long]$MaxSize = 100KB
+            [long]$MaxSize = 100KB,
+            
+            [switch]$AddSummary
         )
 
+        begin {
+            $summary = [pscustomobject]@{
+                Path      = 'Summary'
+                FileCount = 0
+                Size      = 0
+                MaxSize   = $MaxSize
+            }
+        }
+        
         process {
             $Path = Resolve-Path -Path $Path
-
+            
             foreach ($p in $Path) {
-                $result = Get-ChildItem -Path $p -File | 
-                Where-Object Length -lt $MaxSize |
+                $result = Get-ChildItem -Path $p -File -Recurse | 
+                Where-Object -FilterScript { $_.Length -le $MaxSize } | 
                 Measure-Object -Property Length -Sum
-
+            
                 [pscustomobject]@{
-                    Path        = $p
-                    MaxSize     = $MaxSize
-                    FileSizeSum = $result.Sum
+                    Path      = $p
+                    FileCount = $result.Count
+                    Size      = $result.Sum
+                    MaxSize   = $MaxSize
                 }
+                
+                $summary.FileCount += $result.Count
+                $summary.Size += $result.Sum
+            }
+        }
+        
+        end {
+            if ($AddSummary) {
+                $summary
             }
         }
     }
@@ -569,4 +629,3 @@ Write a PowerShell script that
     Get-Item -Path C:\Windows, 'C:\Program Files' | Get-SmallFile
     ```
     </details>
-
