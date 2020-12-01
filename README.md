@@ -506,39 +506,39 @@ Write a PowerShell script that
 
 14. Now that we have the data returned for each folder, having the option to add also a summary object could be quite helpful in some cases. For making this optional, we add a new parameter to the param block:
 
-```powershell
-    [switch]$AddSummary
-```
+    ```powershell
+        [switch]$AddSummary
+    ```
 
-Then we make use of the begin block to initialize an object to store the summary information. Please add the following block above the process block:
+    Then we make use of the begin block to initialize an object to store the summary information. Please add the following block above the process block:
 
-```powershell
-begin {
-        $summary = [pscustomobject]@{
-            Path         = 'Summary'
-            FileCount    = 0
-            Size         = 0
-            MaxSize      = $MaxSize
+    ```powershell
+    begin {
+            $summary = [pscustomobject]@{
+                Path         = 'Summary'
+                FileCount    = 0
+                Size         = 0
+                MaxSize      = $MaxSize
+            }
+        }
+    ```
+
+    For each record that is processed we are adding the file count and the size to the summary object like this:
+
+    ```powershell
+    $summary.FileCount += $result.Count
+    $summary.Size += $result.Sum
+    ```
+
+    bject along with the other objects that contain the info for each folder.
+
+    ```powershell
+    end {
+        if ($AddSummary) {
+            $summary
         }
     }
-```
-
-For each record that is processed we are adding the file count and the size to the summary object like this:
-
-```powershell
-$summary.FileCount += $result.Count
-$summary.Size += $result.Sum
-```
-
-And then we add the following end block below the process block to return the summary object along with the other objects that contain the info for each folder.
-
-```powershell
-end {
-    if ($AddSummary) {
-        $summary
-    }
-}
-```
+    ```
 
 15. Finally, it is time to add some help to the function. For this, we add a comment block at the very beginning of the function. It is important to use the help keywords described in [About Comment-based Help](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-7) to divide you test into sections that 'Get-Help' understands.
 
